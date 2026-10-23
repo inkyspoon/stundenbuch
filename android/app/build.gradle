@@ -1,0 +1,53 @@
+plugins {
+    id 'com.android.application'
+}
+
+// Jeder Build auf GitHub bekommt eine höhere Versionsnummer, damit Updates über die alte App installiert werden können.
+def vc = (System.getenv('VERSION_CODE') ?: '1').toInteger()
+
+android {
+    namespace 'de.stundenbuch.app'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'de.stundenbuch.app'
+        minSdk 26
+        targetSdk 34
+        versionCode vc
+        versionName "1.${vc}"
+    }
+
+    // Fester Schlüssel, damit jede neue Version als Update über die alte passt (sonst gingen beim Neuinstallieren die Daten verloren).
+    signingConfigs {
+        release {
+            storeFile file('stundenbuch.keystore')
+            storePassword 'stundenbuch'
+            keyAlias 'stundenbuch'
+            keyPassword 'stundenbuch'
+        }
+    }
+
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+            minifyEnabled false
+        }
+        debug {
+            signingConfig signingConfigs.release
+        }
+    }
+
+    // Die App zeigt genau die Web-Version aus dem Ordner docs an.
+    sourceSets {
+        main { assets.srcDirs = ['../../docs'] }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'androidx.webkit:webkit:1.11.0'
+}
