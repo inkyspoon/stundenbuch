@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Stundenbuch</title>
-<meta name="description" content="Arbeitsstunden eintragen, mit Summen pro Tag, Woche und Monat.">
+<meta name="description" content="Arbeitsstunden eintragen, mit Summen pro Tag, Woche und Monat, Überstundenkonto und Urlaub.">
 <meta name="theme-color" content="#2c6655">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
@@ -18,20 +18,23 @@
 @font-face{font-family:"Barlow Semi Condensed";font-weight:700;font-display:swap;src:url(fonts/barlow-semi-condensed-latin-700-normal.woff2) format("woff2")}
 [hidden]{display:none!important}
 html{-webkit-text-size-adjust:100%}
-/* Layout: one narrow column, thumb-friendly. Entry form on top, week log, month tally, backup at the bottom. */
+/* Layout: one narrow column, thumb-friendly. Entry form, week log, month vs. Soll, overtime account, backup, settings. */
 :root{
   --bg:#eef0ec; --surface:#ffffff; --sunk:#f5f6f3; --fg:#1c2220; --muted:#626c67; --line:#d8dcd6;
   --accent:#2c6655; --accent-fg:#ffffff; --accent-soft:#dcebe5; --danger:#b23b2e; --danger-soft:#f6e1dd;
+  --vac:#2b6aa3; --vac-soft:#dde9f5; --sick:#9a5f0c; --sick-soft:#f6e9d3; --abbau:#74479b; --abbau-soft:#ece2f5; --free:#626c67; --free-soft:#e8ebe7;
   --f-display:"Barlow Semi Condensed","Arial Narrow",system-ui,sans-serif;
   --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --r:12px;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#121614; --surface:#1b201e; --sunk:#171b19; --fg:#e7ebe8; --muted:#97a19c; --line:#2d3431;
-  --accent:#72c2a5; --accent-fg:#0f1a16; --accent-soft:#1f3a31; --danger:#f08a7c; --danger-soft:#3a201c; color-scheme:dark}}
+  --accent:#72c2a5; --accent-fg:#0f1a16; --accent-soft:#1f3a31; --danger:#f08a7c; --danger-soft:#3a201c;
+  --vac:#86b9e8; --vac-soft:#1c2c3b; --sick:#e3b463; --sick-soft:#352a17; --abbau:#c6a6e6; --abbau-soft:#2c2238; --free:#97a19c; --free-soft:#242a27; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#121614; --surface:#1b201e; --sunk:#171b19; --fg:#e7ebe8; --muted:#97a19c; --line:#2d3431;
-  --accent:#72c2a5; --accent-fg:#0f1a16; --accent-soft:#1f3a31; --danger:#f08a7c; --danger-soft:#3a201c; color-scheme:dark}
+  --accent:#72c2a5; --accent-fg:#0f1a16; --accent-soft:#1f3a31; --danger:#f08a7c; --danger-soft:#3a201c;
+  --vac:#86b9e8; --vac-soft:#1c2c3b; --sick:#e3b463; --sick-soft:#352a17; --abbau:#c6a6e6; --abbau-soft:#2c2238; --free:#97a19c; --free-soft:#242a27; color-scheme:dark}
 
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:16px;line-height:1.45;
@@ -44,6 +47,7 @@ h1{font-family:var(--f-display);font-weight:700;font-size:1.9rem;letter-spacing:
 .today{color:var(--muted);font-size:.95rem}
 section{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:14px}
 h2{font-family:var(--f-display);font-weight:600;font-size:1.05rem;text-transform:uppercase;letter-spacing:.08em;margin:0;color:var(--muted)}
+h3{font-family:var(--f-display);font-weight:600;font-size:1rem;margin:0}
 .sechead{display:flex;align-items:center;justify-content:space-between;gap:8px}
 
 /* form */
@@ -51,27 +55,45 @@ h2{font-family:var(--f-display);font-weight:600;font-size:1.05rem;text-transform
 .full{grid-column:1/-1}
 label{display:flex;flex-direction:column;gap:5px;font-size:.85rem;font-weight:500;color:var(--muted);min-width:0}
 input,textarea{font:inherit;font-size:1.05rem;color:var(--fg);background:var(--sunk);border:1px solid var(--line);border-radius:9px;padding:10px 11px;width:100%;min-width:0}
-input[type=time],input[type=date]{min-height:46px}
-input:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+input[type=time],input[type=date],input[type=month]{min-height:46px}
+input:focus-visible,textarea:focus-visible,button:focus-visible,.day:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.types{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;background:var(--sunk);border:1px solid var(--line);border-radius:10px;padding:4px}
+.types button{font:inherit;font-size:.88rem;font-weight:600;padding:9px 2px;border:0;border-radius:7px;background:transparent;color:var(--muted);cursor:pointer;min-width:0}
+.types button[aria-checked="true"]{background:var(--surface);color:var(--fg);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.types button[data-t="vac"][aria-checked="true"]{color:var(--vac)}
+.types button[data-t="sick"][aria-checked="true"]{color:var(--sick)}
+.types button[data-t="abbau"][aria-checked="true"]{color:var(--abbau)}
 .chips{display:flex;gap:6px;flex-wrap:wrap}
 .chip{font:inherit;font-size:.9rem;padding:6px 11px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer}
 .chip[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--fg)}
 .preview{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:10px 12px;border-radius:9px;background:var(--sunk)}
-.preview b{font-family:var(--f-display);font-size:1.6rem;font-weight:700}
+.preview b{font-family:var(--f-display);font-size:1.6rem;font-weight:700;white-space:nowrap}
+.preview span{min-width:0}
 .preview .err{color:var(--danger);font-size:.9rem}
+.typeinfo{font-size:.92rem;padding:10px 12px;border-radius:9px}
 .actions{display:flex;gap:8px;flex-wrap:wrap}
 .btn{font:inherit;font-weight:600;font-size:1rem;padding:12px 16px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer}
+.btn.small{font-size:.9rem;padding:8px 12px}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-fg);flex:1}
 .btn.danger{color:var(--danger);border-color:var(--danger)}
 .btn.danger.armed{background:var(--danger);color:var(--surface)}
 .mode{font-size:.85rem;color:var(--accent);font-weight:600}
 
+/* type colors */
+.t-free{--tc:var(--free);--ts:var(--free-soft)}
+.t-vac{--tc:var(--vac);--ts:var(--vac-soft)}
+.t-sick{--tc:var(--sick);--ts:var(--sick-soft)}
+.t-abbau{--tc:var(--abbau);--ts:var(--abbau-soft)}
+.typeinfo{background:var(--ts,var(--sunk));color:var(--fg)}
+.typeinfo b{color:var(--tc,var(--fg))}
+.pill{display:inline-block;font-size:.78rem;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--ts);color:var(--tc);letter-spacing:.01em}
+
 /* nav */
 .nav{display:flex;align-items:center;gap:6px}
-.nav button{font:inherit;font-size:1.2rem;width:38px;height:38px;border-radius:9px;border:1px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer;line-height:1}
+.nav button{font:inherit;font-size:1.2rem;width:38px;height:38px;border-radius:9px;border:1px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer;line-height:1;flex:none}
 .navlabel{font-family:var(--f-display);font-weight:600;font-size:1.05rem;text-align:center;min-width:0}
 .navlabel small{display:block;font-family:var(--f-body);font-weight:400;font-size:.8rem;color:var(--muted)}
-.navrow{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.navrow{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
 
 /* week list */
 .days{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
@@ -84,31 +106,60 @@ input:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px soli
 .dinfo .note{color:var(--muted);font-size:.85rem;overflow-wrap:anywhere}
 .dinfo .free{color:var(--muted)}
 .dhours{font-family:var(--f-display);font-weight:700;font-size:1.2rem;text-align:right}
+.dhours.credit{color:var(--tc)}
+.dhours.credit small{display:block;font-family:var(--f-body);font-weight:400;font-size:.72rem;color:var(--muted)}
 .day.empty .dhours{color:var(--line);font-weight:500}
 .day.today .dname{color:var(--accent)}
-.total{display:flex;align-items:baseline;justify-content:space-between;gap:10px;border-top:2px solid var(--fg);padding-top:10px}
+.total{display:flex;align-items:baseline;justify-content:space-between;gap:10px;border-top:2px solid var(--fg);padding-top:10px;flex-wrap:wrap}
 .total span{font-weight:600}
+.total span small{display:block;font-weight:400;font-size:.82rem;color:var(--muted)}
 .total b{font-family:var(--f-display);font-size:1.7rem;font-weight:700}
 .total em{font-style:normal;color:var(--muted);font-size:.85rem;margin-left:6px}
 
 /* month */
-.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.stat{background:var(--sunk);border-radius:9px;padding:10px;min-width:0}
-.stat b{display:block;font-family:var(--f-display);font-size:1.45rem;font-weight:700;line-height:1.15}
-.stat span{font-size:.78rem;color:var(--muted)}
-.kws{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px;font-size:.95rem}
-.kws li{display:flex;justify-content:space-between;padding:4px 2px;color:var(--muted)}
+.goal{display:flex;flex-direction:column;gap:8px}
+.goal .big{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.goal .big b{font-family:var(--f-display);font-size:2.2rem;font-weight:700;line-height:1}
+.goal .big span{color:var(--muted)}
+.bar{position:relative;height:12px;border-radius:999px;background:var(--sunk);border:1px solid var(--line);overflow:hidden}
+.bar i{position:absolute;inset:0 auto 0 0;background:var(--accent);border-radius:999px}
+.bar i.over{background:var(--accent)}
+.result{font-weight:600;font-size:1.05rem}
+.pos{color:var(--accent)} .neg{color:var(--danger)}
+.rows{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.rows li{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:7px 2px;border-top:1px solid var(--line);font-size:.95rem}
+.rows li:first-child{border-top:0}
+.rows li span{color:var(--muted);min-width:0}
+.rows li b{font-weight:600;white-space:nowrap}
+.rows li.sum{border-top:2px solid var(--fg)}
+.rows li.sum span{color:var(--fg);font-weight:600}
+.kws{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px;font-size:.92rem}
+.kws li{display:flex;justify-content:space-between;padding:3px 2px;color:var(--muted)}
 .kws li b{color:var(--fg);font-weight:600}
+.inline{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:.9rem;color:var(--muted)}
+.inline input{width:96px;padding:6px 8px;font-size:1rem}
+.linkbtn{font:inherit;font-size:.88rem;background:none;border:0;color:var(--accent);padding:4px 0;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.sub{border-top:1px solid var(--line);padding-top:14px;display:flex;flex-direction:column;gap:10px}
+
+/* konto */
+.konto{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.konto b{font-family:var(--f-display);font-size:2.4rem;font-weight:700;line-height:1}
+.konto span{color:var(--muted);font-size:.9rem;max-width:30ch}
+.payrow{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.payrow .x{font:inherit;font-size:.85rem;background:none;border:1px solid var(--line);border-radius:7px;color:var(--danger);padding:4px 8px;cursor:pointer}
+.payrow .x.armed{background:var(--danger);color:var(--surface);border-color:var(--danger)}
 
 /* backup */
 .hint{color:var(--muted);font-size:.9rem;margin:0;max-width:60ch}
 textarea{min-height:110px;font-size:.85rem;font-family:ui-monospace,Menlo,Consolas,monospace}
 .warn{background:var(--danger-soft);color:var(--danger);border-radius:9px;padding:10px 12px;font-size:.9rem}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:999px;font-weight:500;font-size:.95rem;max-width:calc(100% - 32px);text-align:center;z-index:20}
-@media (max-width:380px){.grid{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr}}
-@media (prefers-reduced-motion:no-preference){.btn,.chip,.day{transition:background .15s,border-color .15s}}
 .filebtn{position:relative;overflow:hidden}
 .filebtn input{position:absolute;inset:0;opacity:0;cursor:pointer}
+details>summary{cursor:pointer}
+.setgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+@media (max-width:380px){.grid,.setgrid{grid-template-columns:1fr}.types button{font-size:.8rem}}
+@media (prefers-reduced-motion:no-preference){.btn,.chip,.day,.types button{transition:background .15s,border-color .15s,color .15s}.bar i{transition:width .3s}}
 </style>
 </head>
 <body>
@@ -124,12 +175,22 @@ textarea{min-height:110px;font-size:.85rem;font-family:ui-monospace,Menlo,Consol
     <div class="sechead"><h2 id="hEntry">Eintragen</h2><span class="mode" id="modeLabel" hidden>Eintrag bearbeiten</span></div>
     <form id="form" class="grid" autocomplete="off">
       <label class="full">Datum<input type="date" id="fDate" required></label>
-      <label>Beginn<input type="time" id="fStart" required></label>
-      <label>Ende<input type="time" id="fEnd" required></label>
-      <label class="full">Pause in Minuten
-        <input type="number" id="fPause" inputmode="numeric" min="0" max="600" step="5" value="30">
-      </label>
-      <div class="chips full" id="chips" aria-label="Pause schnell wählen"></div>
+      <div class="types full" role="radiogroup" aria-label="Art des Tages" id="types">
+        <button type="button" role="radio" data-t="work">Arbeit</button>
+        <button type="button" role="radio" data-t="free">Frei</button>
+        <button type="button" role="radio" data-t="vac">Urlaub</button>
+        <button type="button" role="radio" data-t="sick">Krank</button>
+        <button type="button" role="radio" data-t="abbau">Abbau</button>
+      </div>
+      <div class="full grid" id="workFields" style="gap:12px">
+        <label>Beginn<input type="time" id="fStart"></label>
+        <label>Ende<input type="time" id="fEnd"></label>
+        <label class="full">Pause in Minuten
+          <input type="number" id="fPause" inputmode="numeric" min="0" max="600" step="5" value="30">
+        </label>
+        <div class="chips full" id="chips" aria-label="Pause schnell wählen"></div>
+      </div>
+      <div class="typeinfo full" id="typeInfo" hidden></div>
       <label class="full">Notiz (optional)<input type="text" id="fNote" maxlength="120" placeholder="z.B. Spätschicht, Inventur"></label>
       <div class="preview full"><span id="prevText">Arbeitszeit</span><b class="num" id="prevHours">0:00</b></div>
       <div class="actions full">
@@ -149,7 +210,7 @@ textarea{min-height:110px;font-size:.85rem;font-family:ui-monospace,Menlo,Consol
       </div>
     </div>
     <ul class="days" id="days"></ul>
-    <div class="total"><span>Summe Woche</span><div><b class="num" id="wTotal">0:00</b><em class="num" id="wDec"></em></div></div>
+    <div class="total"><span>Summe Woche<small id="wSub"></small></span><div><b class="num" id="wTotal">0:00</b><em class="num" id="wDec"></em></div></div>
   </section>
 
   <section aria-labelledby="hMonth">
@@ -161,12 +222,39 @@ textarea{min-height:110px;font-size:.85rem;font-family:ui-monospace,Menlo,Consol
         <button type="button" id="mNext" aria-label="Nächster Monat">›</button>
       </div>
     </div>
-    <div class="stats">
-      <div class="stat"><b class="num" id="mTotal">0:00</b><span>Stunden</span></div>
-      <div class="stat"><b class="num" id="mDays">0</b><span>Arbeitstage</span></div>
-      <div class="stat"><b class="num" id="mAvg">0:00</b><span>Ø pro Tag</span></div>
+    <div class="goal">
+      <div class="big"><b class="num" id="mTotal">0:00</b><span class="num" id="mOf">von 169 Std</span></div>
+      <div class="bar" aria-hidden="true"><i id="mBar" style="width:0"></i></div>
+      <div class="result num" id="mResult"></div>
+    </div>
+    <ul class="rows num" id="mRows"></ul>
+    <div class="inline" id="mTargetRow">
+      <button type="button" class="linkbtn" id="mTargetToggle">Soll für diesen Monat ändern</button>
+      <span id="mTargetEdit" hidden>Soll <input type="number" id="mTargetInput" inputmode="decimal" min="0" max="400" step="0.5"> Std
+        <button type="button" class="linkbtn" id="mTargetReset">Standard</button></span>
     </div>
     <ul class="kws" id="kws"></ul>
+    <div class="sub">
+      <div class="sechead"><h3 id="vTitle">Urlaub</h3><span class="num" id="vLeft"></span></div>
+      <div class="bar" aria-hidden="true"><i id="vBar" style="width:0;background:var(--vac)"></i></div>
+      <div class="inline num"><span id="vText"></span></div>
+      <div class="inline">Anspruch <input type="number" id="vInput" inputmode="decimal" min="0" max="60" step="0.25"> Tage</div>
+    </div>
+  </section>
+
+  <section aria-labelledby="hKonto">
+    <h2 id="hKonto">Überstundenkonto</h2>
+    <div class="konto"><b class="num" id="kNow">0:00</b><span id="kNote"></span></div>
+    <ul class="rows num" id="kRows"></ul>
+    <details id="payDetails">
+      <summary class="hint">Auszahlung eintragen</summary>
+      <form id="payForm" class="grid" style="margin-top:12px" autocomplete="off">
+        <label>Datum<input type="date" id="pDate" required></label>
+        <label>Stunden<input type="number" id="pHours" inputmode="decimal" min="0.25" max="500" step="0.25" required placeholder="z.B. 12"></label>
+        <label class="full">Notiz (optional)<input type="text" id="pNote" maxlength="80" placeholder="z.B. mit Novemberlohn"></label>
+        <div class="actions full"><button type="submit" class="btn primary">Auszahlung speichern</button></div>
+      </form>
+    </details>
   </section>
 
   <section aria-labelledby="hBackup">
@@ -182,7 +270,7 @@ textarea{min-height:110px;font-size:.85rem;font-family:ui-monospace,Menlo,Consol
     </div>
     <textarea id="outBox" readonly hidden aria-label="Kopiertext"></textarea>
     <details>
-      <summary class="hint" style="cursor:pointer">Sicherung wiederherstellen</summary>
+      <summary class="hint">Sicherung wiederherstellen</summary>
       <div style="display:flex;flex-direction:column;gap:10px;margin-top:10px">
         <label class="btn filebtn" style="flex-direction:row;justify-content:center;color:var(--fg);font-size:1rem">Sicherungsdatei wählen<input type="file" id="inFile" accept=".json,application/json,text/plain"></label>
         <textarea id="inBox" placeholder="oder hier den Sicherungstext einfügen" aria-label="Sicherung einfügen"></textarea>
@@ -190,62 +278,145 @@ textarea{min-height:110px;font-size:.85rem;font-family:ui-monospace,Menlo,Consol
       </div>
     </details>
   </section>
+
+  <section aria-labelledby="hSet">
+    <details>
+      <summary><h2 id="hSet" style="display:inline">Einstellungen</h2></summary>
+      <div class="setgrid">
+        <label>Soll pro Monat (Std)<input type="number" id="sTarget" inputmode="decimal" min="0" max="400" step="0.5"></label>
+        <label>Std pro Urlaubs-, Krank- und Abbautag<input type="number" id="sCredit" inputmode="decimal" min="0" max="24" step="0.25"></label>
+        <label>Überstunden zählen ab<input type="month" id="sStartMonth"></label>
+        <label>Überstunden-Startwert (Std)<input type="number" id="sStart" inputmode="decimal" step="0.25"></label>
+        <label>Urlaubstage pro Jahr<input type="number" id="sVac" inputmode="decimal" min="0" max="60" step="0.5"></label>
+      </div>
+      <p class="hint" style="margin-top:12px">Das Soll für einzelne Monate (z.B. einen angefangenen Monat) und den Urlaubsanspruch für ein bestimmtes Jahr stellt man direkt beim Monat ein.</p>
+    </details>
+  </section>
 </div>
 <div class="toast" id="toast" hidden></div>
 
 <script>
 (function(){
-const KEY='stundenbuch.v1', LASTKEY='stundenbuch.last';
+const KEY='stundenbuch.v1', LASTKEY='stundenbuch.last', SETKEY='stundenbuch.settings', PAYKEY='stundenbuch.payouts';
 const WD=['Mo','Di','Mi','Do','Fr','Sa','So'];
 const WDL=['Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag','Sonntag'];
 const MON=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+const TYPES={work:'Arbeit',free:'Frei',vac:'Urlaub',sick:'Krank',abbau:'Stundenabbau'};
+const CREDIT_TYPES=['vac','sick','abbau'];
+const DEFAULTS={target:169,credit:8,start:0,startMonth:'2026-10',vacDefault:30,monthTargets:{'2026-10':147},vacYears:{'2026':11.25}};
 const $=id=>document.getElementById(id);
 
-let entries={}, storageOk=true;
-try{ const raw=localStorage.getItem(KEY); entries=raw?JSON.parse(raw)||{}:{}; localStorage.setItem('stundenbuch.test','1'); }
-catch(e){ storageOk=false; entries={}; }
+/* ---------- storage ---------- */
+let storageOk=true;
+function load(key,fallback){ try{ const raw=localStorage.getItem(key); return raw?JSON.parse(raw):fallback; }catch(e){ storageOk=false; return fallback; } }
+function save(key,val){ try{ localStorage.setItem(key,JSON.stringify(val)); }catch(e){ $('storageWarn').hidden=false; } }
+let entries=load(KEY,{})||{};
+let settings=Object.assign({},DEFAULTS,load(SETKEY,{})||{});
+settings.monthTargets=Object.assign({},settings.monthTargets||{}); settings.vacYears=Object.assign({},settings.vacYears||{});
+let payouts=load(PAYKEY,[])||[];
+try{ localStorage.setItem('stundenbuch.test','1'); }catch(e){ storageOk=false; }
 if(!storageOk) $('storageWarn').hidden=false;
-function persist(){ try{ localStorage.setItem(KEY,JSON.stringify(entries)); }catch(e){ $('storageWarn').hidden=false; } }
-function lastVals(){ try{ return JSON.parse(localStorage.getItem(LASTKEY))||null; }catch(e){ return null; } }
-function setLast(v){ try{ localStorage.setItem(LASTKEY,JSON.stringify(v)); }catch(e){} }
+// alte Einträge ohne Art sind Arbeitstage
+Object.keys(entries).forEach(k=>{ if(!entries[k].type) entries[k].type='work'; });
+const persist=()=>save(KEY,entries), persistSet=()=>save(SETKEY,settings), persistPay=()=>save(PAYKEY,payouts);
+function lastVals(){ return load(LASTKEY,null); }
 
+/* ---------- helpers ---------- */
 const pad=n=>String(n).padStart(2,'0');
 const iso=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
 const parse=s=>{const [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d);};
+const ymOf=d=>d.getFullYear()+'-'+pad(d.getMonth()+1);
+const nextYM=ym=>{let [y,m]=ym.split('-').map(Number); m++; if(m>12){m=1;y++;} return y+'-'+pad(m);};
+const ymName=ym=>{const [y,m]=ym.split('-').map(Number); return MON[m-1]+' '+y;};
 const toM=t=>{ if(!t) return null; const [h,m]=t.split(':').map(Number); return h*60+m; };
-const fmt=m=>Math.floor(m/60)+':'+pad(m%60);
+function fmt(m){ const s=m<0?'−':''; m=Math.abs(Math.round(m)); return s+Math.floor(m/60)+':'+pad(m%60); }
+function sgn(m){ m=Math.round(m); return (m>0?'+':'')+fmt(m); }
 const dec=m=>(m/60).toFixed(2).replace('.',',');
+const nf=n=>String(Math.round(n*100)/100).replace('.',',');
 const wdIdx=d=>(d.getDay()+6)%7;
 const monday=d=>{const x=new Date(d);x.setDate(x.getDate()-wdIdx(x));return x;};
 const addDays=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x;};
 function kw(d){ const x=new Date(d.getFullYear(),d.getMonth(),d.getDate()); x.setDate(x.getDate()+3-wdIdx(x));
   const w1=new Date(x.getFullYear(),0,4); return 1+Math.round(((x-w1)/864e5-3+wdIdx(w1))/7); }
-function minsOf(e){ const s=toM(e.start), en=toM(e.end); if(s==null||en==null) return null; const r=en-s-(+e.pause||0); return r; }
 const short=d=>d.getDate()+'.'+(d.getMonth()+1)+'.';
+const creditMin=()=>Math.round((+settings.credit||0)*60);
+function workedOf(e){ const s=toM(e.start), en=toM(e.end); if(s==null||en==null) return null; return en-s-(+e.pause||0); }
+/* Minuten, die ein Tag für das Monats-Soll zählt */
+function countOf(e){ if(!e) return 0; if(e.type==='work') return workedOf(e)||0; if(CREDIT_TYPES.includes(e.type)) return creditMin(); return 0; }
+const targetOf=ym=>Math.round(((settings.monthTargets[ym]!=null)?+settings.monthTargets[ym]:+settings.target)*60);
+const vacOf=y=>(settings.vacYears[y]!=null)?+settings.vacYears[y]:+settings.vacDefault;
 
-const today=new Date();
+function monthStats(ym){
+  const [y,m]=ym.split('-').map(Number), n=new Date(y,m,0).getDate();
+  const s={worked:0,credit:0,total:0,target:targetOf(ym),c:{work:0,free:0,vac:0,sick:0,abbau:0},abbauMin:0,payMin:0};
+  for(let i=1;i<=n;i++){ const e=entries[ym+'-'+pad(i)]; if(!e) continue; s.c[e.type]=(s.c[e.type]||0)+1;
+    if(e.type==='work') s.worked+=workedOf(e)||0; else if(CREDIT_TYPES.includes(e.type)) s.credit+=creditMin(); }
+  s.total=s.worked+s.credit; s.diff=s.total-s.target; s.abbauMin=s.c.abbau*creditMin();
+  payouts.forEach(p=>{ if(p.date.slice(0,7)===ym) s.payMin+=Math.round(p.hours*60); });
+  return s;
+}
+/* Kontostand am Ende von Monat ym (bzw. jetzt, wenn ym der laufende Monat ist).
+   Abgeschlossene Monate: Plus- und Minusstunden zählen voll. Laufender Monat: nur Überstunden über dem Soll.
+   Stundenabbau und Auszahlungen werden sofort abgezogen. */
+function kontoAt(ym){
+  const cur=ymOf(new Date()); let bal=Math.round((+settings.start||0)*60); const rows=[];
+  if(!settings.startMonth||ym<settings.startMonth) return {bal,rows};
+  for(let m=settings.startMonth; m<=ym && m<=cur; m=nextYM(m)){
+    const s=monthStats(m); const closed=m<cur; const add=closed?s.diff:Math.max(0,s.diff);
+    bal+=add-s.abbauMin-s.payMin; rows.push({ym:m,add,closed,abbau:s.abbauMin,pay:s.payMin,bal});
+  }
+  return {bal,rows};
+}
+
+const today=new Date(), todayIso=iso(today), curYM=ymOf(today);
 $('todayLabel').textContent=WDL[wdIdx(today)]+', '+today.getDate()+'. '+MON[today.getMonth()];
 let weekStart=monday(today), monthDate=new Date(today.getFullYear(),today.getMonth(),1);
 
-/* form */
+/* ---------- form ---------- */
 const fDate=$('fDate'),fStart=$('fStart'),fEnd=$('fEnd'),fPause=$('fPause'),fNote=$('fNote');
+let fType='work';
 const PAUSES=[0,15,30,45,60];
 $('chips').innerHTML=PAUSES.map(p=>`<button type="button" class="chip" data-p="${p}" aria-pressed="false">${p===60?'1 Std':p+' Min'}</button>`).join('');
 $('chips').addEventListener('click',e=>{const b=e.target.closest('.chip'); if(!b) return; fPause.value=b.dataset.p; update();});
-
+$('types').addEventListener('click',e=>{const b=e.target.closest('button'); if(!b) return; setType(b.dataset.t); });
+$('types').addEventListener('keydown',e=>{ const keys=Object.keys(TYPES); let i=keys.indexOf(fType);
+  if(e.key==='ArrowRight'){i=(i+1)%keys.length;} else if(e.key==='ArrowLeft'){i=(i+keys.length-1)%keys.length;} else return;
+  e.preventDefault(); setType(keys[i]); $('types').querySelector(`[data-t="${keys[i]}"]`).focus(); });
+function setType(t){
+  fType=t;
+  document.querySelectorAll('#types button').forEach(b=>{ const on=b.dataset.t===t; b.setAttribute('aria-checked',String(on)); b.tabIndex=on?0:-1; });
+  $('workFields').hidden=t!=='work';
+  if(t==='work' && !fStart.value && !fEnd.value){ const l=lastVals(); if(l){ fStart.value=l.start; fEnd.value=l.end; fPause.value=l.pause; } }
+  update();
+}
 function loadDate(ds){
   fDate.value=ds; const e=entries[ds];
-  if(e){ fStart.value=e.start; fEnd.value=e.end; fPause.value=e.pause; fNote.value=e.note||''; }
-  else { const l=lastVals(); fStart.value=l?l.start:''; fEnd.value=l?l.end:''; fPause.value=l?l.pause:30; fNote.value=''; }
-  disarm(); update();
+  if(e){ fStart.value=e.start||''; fEnd.value=e.end||''; fPause.value=e.pause!=null?e.pause:30; fNote.value=e.note||''; disarm(); setType(e.type||'work'); return; }
+  const l=lastVals(); fStart.value=l?l.start:''; fEnd.value=l?l.end:''; fPause.value=l?l.pause:30; fNote.value='';
+  disarm(); setType('work');
 }
+function typeInfoHtml(t,ds){
+  const c=fmt(creditMin());
+  if(t==='free') return 'Freier Tag, zählt <b>0 Std</b>.';
+  if(t==='sick') return `Krankheitstag, zählt wie ein Arbeitstag mit <b>${c} Std</b>.`;
+  if(t==='vac'){ const y=(ds||todayIso).slice(0,4); const v=vacTaken(y,ds); const left=vacOf(y)-v-(entries[ds]&&entries[ds].type==='vac'?0:1);
+    return `Urlaubstag, zählt <b>${c} Std</b>. Danach noch <b>${nf(left)}</b> Urlaubstage ${y} übrig.`; }
+  if(t==='abbau'){ const prev=entries[ds]; let k;
+    if(ds){ entries[ds]={type:'abbau'}; k=kontoAt(curYM).bal; if(prev) entries[ds]=prev; else delete entries[ds]; }
+    else k=kontoAt(curYM).bal-creditMin();
+    return `Zählt <b>${c} Std</b> für den Monat und nimmt <b>${c} Std</b> vom Überstundenkonto. Konto danach: <b>${sgn(k)}</b>.`; }
+  return '';
+}
+function vacTaken(y,exceptDs){ let n=0; Object.keys(entries).forEach(k=>{ if(k.startsWith(y+'-')&&entries[k].type==='vac'&&k!==exceptDs) n++; }); return n; }
 function update(){
   const editing=!!entries[fDate.value];
   $('modeLabel').hidden=!editing; $('delBtn').hidden=!editing;
   $('saveBtn').textContent=editing?'Änderung speichern':'Speichern';
   document.querySelectorAll('.chip').forEach(c=>c.setAttribute('aria-pressed',String(+c.dataset.p===+fPause.value)));
-  const m=minsOf({start:fStart.value,end:fEnd.value,pause:fPause.value});
+  const ti=$('typeInfo'); ti.className='typeinfo full t-'+fType; ti.hidden=fType==='work'; ti.innerHTML=typeInfoHtml(fType,fDate.value);
   const pt=$('prevText'), ph=$('prevHours'); pt.classList.remove('err');
+  if(fType!=='work'){ pt.textContent=fType==='free'?'Zählt für den Monat':'Zählt für den Monat'; ph.textContent=fmt(countOf({type:fType})); return; }
+  const m=workedOf({start:fStart.value,end:fEnd.value,pause:fPause.value});
   if(m==null){ pt.textContent='Arbeitszeit'; ph.textContent='–'; return; }
   if(toM(fEnd.value)<=toM(fStart.value)){ pt.textContent='Ende muss nach Beginn liegen'; pt.classList.add('err'); ph.textContent='–'; return; }
   if(m<0){ pt.textContent='Pause ist länger als die Schicht'; pt.classList.add('err'); ph.textContent='–'; return; }
@@ -256,16 +427,21 @@ fDate.addEventListener('change',()=>{ if(fDate.value){ loadDate(fDate.value); we
 
 $('form').addEventListener('submit',ev=>{
   ev.preventDefault();
-  const ds=fDate.value; if(!ds||!fStart.value||!fEnd.value){ toast('Bitte Datum, Beginn und Ende ausfüllen'); return; }
-  const pause=Math.max(0,Math.round(+fPause.value||0));
-  const e={start:fStart.value,end:fEnd.value,pause,note:fNote.value.trim()};
-  const m=minsOf(e);
-  if(toM(e.end)<=toM(e.start)){ toast('Ende muss nach Beginn liegen'); return; }
-  if(m<0){ toast('Pause ist länger als die Schicht'); return; }
-  const was=!!entries[ds]; entries[ds]=e; persist(); setLast({start:e.start,end:e.end,pause});
-  weekStart=monday(parse(ds)); monthDate=new Date(parse(ds).getFullYear(),parse(ds).getMonth(),1);
+  const ds=fDate.value; if(!ds){ toast('Bitte ein Datum wählen'); return; }
+  let e;
+  if(fType==='work'){
+    if(!fStart.value||!fEnd.value){ toast('Bitte Beginn und Ende ausfüllen'); return; }
+    const pause=Math.max(0,Math.round(+fPause.value||0));
+    e={type:'work',start:fStart.value,end:fEnd.value,pause,note:fNote.value.trim()};
+    if(toM(e.end)<=toM(e.start)){ toast('Ende muss nach Beginn liegen'); return; }
+    if(workedOf(e)<0){ toast('Pause ist länger als die Schicht'); return; }
+    save(LASTKEY,{start:e.start,end:e.end,pause});
+  } else e={type:fType,note:fNote.value.trim()};
+  const was=!!entries[ds]; entries[ds]=e; persist();
+  const d=parse(ds); weekStart=monday(d); monthDate=new Date(d.getFullYear(),d.getMonth(),1);
   render(); update();
-  toast((was?'Geändert: ':'Gespeichert: ')+WD[wdIdx(parse(ds))]+' '+short(parse(ds))+', '+fmt(m)+' Std');
+  const what=e.type==='work'?fmt(workedOf(e))+' Std':TYPES[e.type];
+  toast((was?'Geändert: ':'Gespeichert: ')+WD[wdIdx(d)]+' '+short(d)+', '+what);
 });
 
 let armTimer=null;
@@ -276,58 +452,142 @@ $('delBtn').addEventListener('click',()=>{
   const ds=fDate.value; delete entries[ds]; persist(); disarm(); loadDate(ds); render(); toast('Eintrag gelöscht');
 });
 
-/* week */
+/* ---------- week ---------- */
 $('wPrev').onclick=()=>{weekStart=addDays(weekStart,-7);render();};
 $('wNext').onclick=()=>{weekStart=addDays(weekStart,7);render();};
 $('mPrev').onclick=()=>{monthDate=new Date(monthDate.getFullYear(),monthDate.getMonth()-1,1);render();};
 $('mNext').onclick=()=>{monthDate=new Date(monthDate.getFullYear(),monthDate.getMonth()+1,1);render();};
 
-function esc(s){return s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 function renderWeek(){
   const end=addDays(weekStart,6);
   $('wLabel').innerHTML='KW '+kw(weekStart)+'<small>'+short(weekStart)+' – '+short(end)+end.getFullYear()+'</small>';
-  let total=0, html='';
+  let total=0, worked=0, free=0, html='';
   for(let i=0;i<7;i++){
-    const d=addDays(weekStart,i), ds=iso(d), e=entries[ds], isT=ds===iso(today);
-    let info, hrs;
-    if(e){ const m=minsOf(e); total+=m; hrs=fmt(m);
-      info=`<div class="num">${e.start} – ${e.end}${e.pause?' · '+e.pause+' Min Pause':''}</div>${e.note?`<div class="note">${esc(e.note)}</div>`:''}`;
-    } else { hrs='–'; info='<div class="free">nicht eingetragen</div>'; }
+    const d=addDays(weekStart,i), ds=iso(d), e=entries[ds], isT=ds===todayIso;
+    let info, hrs, hcls='dhours num';
+    if(!e){ hrs='–'; info='<div class="free">nicht eingetragen</div>'; }
+    else if(e.type==='work'){ const m=workedOf(e)||0; total+=m; worked+=m; hrs=fmt(m);
+      info=`<div class="num">${e.start} – ${e.end}${e.pause?' · '+e.pause+' Min Pause':''}</div>`; }
+    else { const c=countOf(e); total+=c; if(e.type==='free') free++;
+      info=`<div><span class="pill t-${e.type}">${TYPES[e.type]}</span></div>`;
+      if(e.type==='free'){ hrs='frei'; hcls+=' credit t-free'; }
+      else { hrs=fmt(c)+(e.type==='abbau'?'<small>vom Konto</small>':'<small>gutgeschr.</small>'); hcls+=' credit t-'+e.type; } }
+    if(e&&e.note) info+=`<div class="note">${esc(e.note)}</div>`;
     html+=`<li class="day${e?'':' empty'}${isT?' today':''}" data-d="${ds}" tabindex="0" role="button" aria-label="${WDL[i]} ${short(d)} bearbeiten">
-      <div class="dname">${WD[i]}<small class="num">${short(d)}</small></div><div class="dinfo">${info}</div><div class="dhours num">${hrs}</div></li>`;
+      <div class="dname">${WD[i]}<small class="num">${short(d)}</small></div><div class="dinfo">${info}</div><div class="${hcls}">${hrs}</div></li>`;
   }
   $('days').innerHTML=html; $('wTotal').textContent=fmt(total); $('wDec').textContent='('+dec(total)+')';
+  const parts=[]; if(total!==worked) parts.push('davon gearbeitet '+fmt(worked));
+  parts.push(free===1?'1 freier Tag':free+' freie Tage');
+  $('wSub').textContent=parts.join(' · ');
 }
 function pick(el){ const li=el.closest('.day'); if(!li) return; loadDate(li.dataset.d); window.scrollTo({top:0,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'}); if(!entries[li.dataset.d]) fStart.focus({preventScroll:true}); }
 $('days').addEventListener('click',e=>pick(e.target));
 $('days').addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); pick(e.target); } });
 
-/* month */
+/* ---------- month ---------- */
 function renderMonth(){
-  const y=monthDate.getFullYear(), mo=monthDate.getMonth();
+  const y=monthDate.getFullYear(), mo=monthDate.getMonth(), ym=y+'-'+pad(mo+1);
   $('mLabel').textContent=MON[mo]+' '+y;
-  let total=0, days=0; const byKw=new Map();
-  const n=new Date(y,mo+1,0).getDate();
-  for(let i=1;i<=n;i++){ const d=new Date(y,mo,i), e=entries[iso(d)]; const k=kw(d);
-    if(!byKw.has(k)) byKw.set(k,{m:0,from:d,to:d}); const b=byKw.get(k); b.to=d;
-    if(e){ const m=minsOf(e); total+=m; days++; b.m+=m; } }
-  $('mTotal').textContent=fmt(total); $('mDays').textContent=days; $('mAvg').textContent=days?fmt(Math.round(total/days)):'0:00';
+  const s=monthStats(ym), tH=s.target/60;
+  $('mTotal').textContent=fmt(s.total); $('mOf').textContent='von '+nf(tH)+' Std'+(settings.monthTargets[ym]!=null?' (angepasst)':'');
+  const bar=$('mBar'); bar.style.width=(s.target?Math.min(100,s.total/s.target*100):0)+'%';
+  const r=$('mResult'); r.className='result num';
+  if(ym>curYM){ r.textContent=s.total?'Geplant':''; }
+  else if(ym===curYM && s.diff<0){ r.textContent='Noch '+fmt(-s.diff)+' Std bis '+nf(tH); }
+  else if(s.diff>=0){ r.textContent='Überstunden '+sgn(s.diff); r.classList.add('pos'); }
+  else { r.textContent='Minusstunden '+fmt(s.diff); r.classList.add('neg'); }
+  const c=creditMin(), rows=[];
+  rows.push(['Gearbeitet ('+s.c.work+(s.c.work===1?' Tag':' Tage')+')',fmt(s.worked)]);
+  if(s.c.vac) rows.push([`<span class="pill t-vac">Urlaub</span> ${s.c.vac} × ${fmt(c)}`,'+'+fmt(s.c.vac*c)]);
+  if(s.c.sick) rows.push([`<span class="pill t-sick">Krank</span> ${s.c.sick} × ${fmt(c)}`,'+'+fmt(s.c.sick*c)]);
+  if(s.c.abbau) rows.push([`<span class="pill t-abbau">Stundenabbau</span> ${s.c.abbau} × ${fmt(c)}`,'+'+fmt(s.c.abbau*c)]);
+  if(s.c.free) rows.push([`<span class="pill t-free">Frei</span> ${s.c.free} ${s.c.free===1?'Tag':'Tage'}`,'0:00']);
+  rows.push(['Soll',fmt(s.target)]);
+  $('mRows').innerHTML=rows.map(([a,b])=>`<li><span>${a}</span><b>${b}</b></li>`).join('');
+  // per KW
+  const byKw=new Map(), n=new Date(y,mo+1,0).getDate();
+  for(let i=1;i<=n;i++){ const d=new Date(y,mo,i), k=kw(d);
+    if(!byKw.has(k)) byKw.set(k,{m:0,from:d,to:d}); const b=byKw.get(k); b.to=d; b.m+=countOf(entries[iso(d)]); }
   $('kws').innerHTML=[...byKw].map(([k,b])=>`<li class="num"><span>KW ${k} · ${short(b.from)}–${short(b.to)}</span><b>${fmt(b.m)}</b></li>`).join('');
+  // Soll-Eingabe
+  const ti=$('mTargetInput'); if(document.activeElement!==ti) ti.value=nf(tH).replace(',','.');
+  $('mTargetReset').hidden=settings.monthTargets[ym]==null;
+  // Urlaub
+  const yr=String(y), ent=vacOf(yr), taken=vacTaken(yr), left=ent-taken;
+  $('vTitle').textContent='Urlaub '+yr;
+  $('vLeft').innerHTML=`<b>${nf(left)}</b> ${Math.abs(left)===1?'Tag':'Tage'} übrig`;
+  $('vText').textContent=`${taken} von ${nf(ent)} genommen`;
+  $('vBar').style.width=(ent?Math.min(100,taken/ent*100):0)+'%';
+  const vi=$('vInput'); if(document.activeElement!==vi) vi.value=ent;
 }
-function render(){ renderWeek(); renderMonth(); }
+$('mTargetToggle').onclick=()=>{ $('mTargetEdit').hidden=!$('mTargetEdit').hidden; if(!$('mTargetEdit').hidden) $('mTargetInput').focus(); };
+$('mTargetInput').addEventListener('change',()=>{ const v=parseFloat(String($('mTargetInput').value).replace(',','.')); const ym=ymOf(monthDate);
+  if(isNaN(v)||v<0){ toast('Bitte eine Stundenzahl eingeben'); return; }
+  if(v===+settings.target) delete settings.monthTargets[ym]; else settings.monthTargets[ym]=v;
+  persistSet(); render(); toast('Soll für '+ymName(ym)+': '+nf(v)+' Std'); });
+$('mTargetReset').onclick=()=>{ const ym=ymOf(monthDate); delete settings.monthTargets[ym]; persistSet(); $('mTargetInput').value=settings.target; render(); toast('Soll zurück auf '+nf(+settings.target)+' Std'); };
+$('vInput').addEventListener('change',()=>{ const v=parseFloat(String($('vInput').value).replace(',','.')); const y=String(monthDate.getFullYear());
+  if(isNaN(v)||v<0){ toast('Bitte eine Anzahl Tage eingeben'); return; }
+  if(v===+settings.vacDefault) delete settings.vacYears[y]; else settings.vacYears[y]=v;
+  persistSet(); render(); toast('Urlaubsanspruch '+y+': '+nf(v)+' Tage'); });
 
-/* backup */
+/* ---------- konto ---------- */
+function renderKonto(){
+  const k=kontoAt(curYM), el=$('kNow');
+  el.textContent=sgn(k.bal); el.className='num '+(k.bal<0?'neg':k.bal>0?'pos':'');
+  $('kNote').textContent='Stand heute. Im laufenden Monat zählen erst die Stunden über dem Soll, Minusstunden erst am Monatsende.';
+  const rows=[];
+  if(+settings.start) rows.push({l:'Startwert',v:sgn(Math.round(settings.start*60))});
+  k.rows.forEach(r=>{
+    const lbl=ymName(r.ym)+(r.closed?'':' (läuft)');
+    rows.push({l:lbl+(r.closed?(r.add>=0?' · Überstunden':' · Minusstunden'):' · bisher über Soll'),v:sgn(r.add)});
+    if(r.abbau) rows.push({l:'&nbsp;&nbsp;Stundenabbau',v:sgn(-r.abbau)});
+    payouts.filter(p=>p.date.slice(0,7)===r.ym).sort((a,b)=>a.date<b.date?-1:1).forEach(p=>{
+      rows.push({l:`<span class="payrow">&nbsp;&nbsp;Auszahlung ${short(parse(p.date))}${p.note?' · '+esc(p.note):''} <button type="button" class="x" data-id="${p.id}">Löschen</button></span>`,v:sgn(-Math.round(p.hours*60))}); });
+  });
+  // Auszahlungen außerhalb des gezählten Zeitraums
+  payouts.filter(p=>!settings.startMonth||p.date.slice(0,7)<settings.startMonth||p.date.slice(0,7)>curYM).forEach(p=>{
+    rows.push({l:`<span class="payrow">Auszahlung ${short(parse(p.date))}${p.date.slice(0,4)} (zählt noch nicht) <button type="button" class="x" data-id="${p.id}">Löschen</button></span>`,v:sgn(-Math.round(p.hours*60))}); });
+  rows.push({l:'Stand',v:sgn(k.bal),sum:true});
+  $('kRows').innerHTML=rows.map(r=>`<li${r.sum?' class="sum"':''}><span>${r.l}</span><b>${r.v}</b></li>`).join('');
+}
+$('kRows').addEventListener('click',e=>{ const b=e.target.closest('.x'); if(!b) return;
+  if(!b.classList.contains('armed')){ b.classList.add('armed'); b.textContent='Sicher?'; setTimeout(()=>{ if(b.isConnected){ b.classList.remove('armed'); b.textContent='Löschen'; } },4000); return; }
+  payouts=payouts.filter(p=>p.id!==b.dataset.id); persistPay(); render(); toast('Auszahlung gelöscht'); });
+$('pDate').value=todayIso;
+$('payForm').addEventListener('submit',ev=>{ ev.preventDefault();
+  const h=parseFloat(String($('pHours').value).replace(',','.')); const d=$('pDate').value;
+  if(!d||isNaN(h)||h<=0){ toast('Bitte Datum und Stunden eingeben'); return; }
+  payouts.push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),date:d,hours:h,note:$('pNote').value.trim()});
+  persistPay(); $('pHours').value=''; $('pNote').value=''; $('payDetails').open=false; render(); toast(nf(h)+' Std Auszahlung eingetragen'); });
+
+/* ---------- settings ---------- */
+const S={sTarget:'target',sCredit:'credit',sStart:'start',sVac:'vacDefault'};
+function fillSettings(){ Object.keys(S).forEach(id=>{ if(document.activeElement!==$(id)) $(id).value=settings[S[id]]; }); $('sStartMonth').value=settings.startMonth||''; }
+Object.keys(S).forEach(id=>$(id).addEventListener('change',()=>{ const v=parseFloat(String($(id).value).replace(',','.'));
+  if(isNaN(v)){ toast('Bitte eine Zahl eingeben'); fillSettings(); return; } settings[S[id]]=v; persistSet(); render(); update(); toast('Gespeichert'); }));
+$('sStartMonth').addEventListener('change',()=>{ settings.startMonth=$('sStartMonth').value||''; persistSet(); render(); toast('Gespeichert'); });
+
+function render(){ renderWeek(); renderMonth(); renderKonto(); fillSettings(); }
+
+/* ---------- backup ---------- */
 function sorted(){ return Object.keys(entries).sort(); }
 function csv(){
   const q=s=>/[;"\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;
-  const rows=['Datum;Wochentag;Beginn;Ende;Pause (Min);Stunden;Notiz'];
-  sorted().forEach(ds=>{const e=entries[ds],d=parse(ds); rows.push([pad(d.getDate())+'.'+pad(d.getMonth()+1)+'.'+d.getFullYear(),WDL[wdIdx(d)],e.start,e.end,e.pause,dec(minsOf(e)),q(e.note||'')].join(';'));});
+  const rows=['Datum;Wochentag;Art;Beginn;Ende;Pause (Min);Gearbeitet (Std);Zählt (Std);Notiz'];
+  sorted().forEach(ds=>{const e=entries[ds],d=parse(ds); const w=e.type==='work'?workedOf(e)||0:0;
+    rows.push([pad(d.getDate())+'.'+pad(d.getMonth()+1)+'.'+d.getFullYear(),WDL[wdIdx(d)],TYPES[e.type]||'',e.start||'',e.end||'',e.type==='work'?e.pause:'',dec(w),dec(countOf(e)),q(e.note||'')].join(';'));});
+  if(payouts.length){ rows.push(''); rows.push('Auszahlung;Datum;Stunden;Notiz');
+    payouts.slice().sort((a,b)=>a.date<b.date?-1:1).forEach(p=>{const d=parse(p.date); rows.push(['Auszahlung',pad(d.getDate())+'.'+pad(d.getMonth()+1)+'.'+d.getFullYear(),String(p.hours).replace('.',','),q(p.note||'')].join(';'));}); }
+  rows.push(''); rows.push('Überstundenkonto heute;'+dec(kontoAt(curYM).bal));
   return rows.join('\n');
 }
 const bridge=window.AndroidBridge||null;
-const backupText=()=>JSON.stringify({app:'stundenbuch',v:1,entries});
+const backupText=()=>JSON.stringify({app:'stundenbuch',v:2,entries,settings,payouts});
 const stamp=()=>iso(new Date());
-function hasData(){ if(!Object.keys(entries).length){ toast('Noch keine Einträge vorhanden'); return false; } return true; }
+function hasData(){ if(!Object.keys(entries).length&&!payouts.length){ toast('Noch keine Einträge vorhanden'); return false; } return true; }
 function copy(text,label){
   if(!hasData()) return;
   const box=$('outBox'); box.value=text;
@@ -352,8 +612,16 @@ $('saveJson').onclick=()=>saveFile('stundenbuch-sicherung-'+stamp()+'.json','app
 function restore(text){
   let data; try{ data=JSON.parse(String(text).trim()); }catch(e){ toast('Das ist keine gültige Sicherung'); return; }
   const src=data&&data.entries; if(!src||typeof src!=='object'){ toast('Das ist keine gültige Sicherung'); return; }
-  let n=0; Object.keys(src).forEach(ds=>{ const e=src[ds]; if(/^\d{4}-\d{2}-\d{2}$/.test(ds)&&e&&e.start&&e.end){ entries[ds]={start:e.start,end:e.end,pause:+e.pause||0,note:e.note||''}; n++; } });
-  persist(); $('inBox').value=''; loadDate(fDate.value||iso(today)); render(); toast(n+' Einträge eingespielt');
+  let n=0; Object.keys(src).forEach(ds=>{ const e=src[ds]; if(!/^\d{4}-\d{2}-\d{2}$/.test(ds)||!e) return;
+    const t=TYPES[e.type]?e.type:'work';
+    if(t==='work'){ if(!e.start||!e.end) return; entries[ds]={type:'work',start:e.start,end:e.end,pause:+e.pause||0,note:e.note||''}; }
+    else entries[ds]={type:t,note:e.note||''};
+    n++; });
+  if(data.settings&&typeof data.settings==='object'){ settings=Object.assign({},DEFAULTS,data.settings);
+    settings.monthTargets=Object.assign({},settings.monthTargets||{}); settings.vacYears=Object.assign({},settings.vacYears||{}); persistSet(); }
+  if(Array.isArray(data.payouts)){ const ids=new Set(payouts.map(p=>p.id));
+    data.payouts.forEach(p=>{ if(p&&p.id&&!ids.has(p.id)&&/^\d{4}-\d{2}-\d{2}$/.test(p.date)&&+p.hours>0) payouts.push({id:String(p.id),date:p.date,hours:+p.hours,note:p.note||''}); }); persistPay(); }
+  persist(); $('inBox').value=''; loadDate(fDate.value||todayIso); render(); toast(n+' Einträge eingespielt');
 }
 $('restoreBtn').onclick=()=>restore($('inBox').value);
 $('inFile').addEventListener('change',ev=>{ const f=ev.target.files&&ev.target.files[0]; if(!f) return;
@@ -363,7 +631,10 @@ if('serviceWorker' in navigator && location.protocol==='https:' && !bridge){ nav
 let tt=null;
 function toast(msg){ const t=$('toast'); t.textContent=msg; t.hidden=false; clearTimeout(tt); tt=setTimeout(()=>t.hidden=true,2600); }
 
-loadDate(iso(today)); render();
+// Testhilfe (nur für automatische Prüfungen)
+window.__sb={monthStats,kontoAt,get entries(){return entries;},get settings(){return settings;},get payouts(){return payouts;}};
+
+persist(); loadDate(todayIso); render();
 })();
 </script>
 </body>

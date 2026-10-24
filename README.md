@@ -3,6 +3,12 @@
 Arbeitsstunden auf dem Handy eintragen: Datum, Beginn, Ende, Pause und Notiz.
 Die App zeigt die Stunden pro Tag, die Summe der Woche (Montag bis Sonntag) und des Monats.
 
+- Tagesarten: Arbeit, Frei, Urlaub, Krank, Stundenabbau
+- Urlaub, Krank und Stundenabbau zählen 8 Std für den Monat, Stundenabbau nimmt zusätzlich 8 Std vom Überstundenkonto
+- Monats-Soll 169 Std (einzelne Monate anpassbar), Über- und Minusstunden laufen in ein Überstundenkonto
+- Auszahlungen von Überstunden lassen sich eintragen
+- Urlaubsanspruch pro Jahr mit genommenen und übrigen Tagen
+
 Die Einträge bleiben nur auf dem Handy gespeichert. Nichts davon landet hier im Repository.
 
 ## Zwei Varianten, gleiche App

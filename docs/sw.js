@@ -1,5 +1,5 @@
 // Offline-Speicher für die App-Dateien. Bei Änderungen an der App die Versionsnummer erhöhen.
-const CACHE = 'stundenbuch-v1';
+const CACHE = 'stundenbuch-v2';
 const FILES = [
   './', 'index.html', 'manifest.webmanifest',
   'icon-192.png', 'icon-512.png', 'icon-maskable.png', 'apple-touch-icon.png',
